@@ -5,14 +5,55 @@ This project implements a sophisticated AI agent designed to act as a financial 
 
 The agent uses a robust two-step "Researcher → Strategist" architecture to first gather high-quality data and then formulate a concrete, data-driven plan.
 
-## Core Features
-Dynamic Competitor Analysis: Automatically detects stock tickers (e.g., (F), (GM)) in your prompt and creates a specific analysis tool for each company's latest 10-K filing using the sec-api.
+## 🤖 Agentic Architecture: A Two-Stage Approach
+To ensure accuracy and prevent premature conclusions, the agent operates in two distinct stages: Data Foraging and Strategy Synthesis. This separation of concerns is critical for producing high-quality, reliable output.
 
-Internal Data Integration: Reads and analyzes your company's private operational data from a local file to understand your specific financial situation.
+Stage 1: The Researcher Agent (Data Foraging)
+The first stage is handled by a ReAct Agent. "ReAct" stands for Reasoning and Acting, meaning the agent iteratively thinks about its goal, selects the best tool, executes an action, and observes the outcome to inform its next step. The Researcher's sole purpose is to gather raw, unbiased data from multiple sources in response to the user's query. It is explicitly instructed not to perform analysis or draw conclusions.
 
-Real-Time Market Research: Uses the Tavily search API to gather the latest industry trends, news, and market projections relevant to your query.
+The Researcher has access to a dynamic toolkit:
 
-Two-Step "Researcher → Strategist" Logic: A powerful architecture that first uses a "Researcher" agent to gather facts and then feeds that analysis to a "Strategist" AI to ensure a high-quality, actionable final plan.
+- SEC Filings Tool  Filing:
+
+    - Function: Dynamically created for each stock ticker (e.g., (F), (GM)) found in the prompt.
+
+    - Data Source: It targets Item 7: Management's Discussion and Analysis (MD&A) from the company's most recent 10-K filing, accessed via the sec-api.io service.
+
+    - Strategic Value: The MD&A provides a direct narrative from the company's management about its financial performance, capital allocation, and key risk factors, offering insights that raw numbers alone cannot.
+
+- Web Search Tool 🌐:
+
+    - Function: Provides the ability to conduct real-time, optimized web searches.
+
+    - Data Source: Powered by the Tavily Research API.
+
+    - Strategic Value: This tool is crucial for capturing timely information that doesn't exist in periodic SEC filings, such as recent market trends, breaking news, competitive analysis, and emerging technologies (e.g., "market trends for EV charging infrastructure").
+
+- Internal Data RAG Tool 📄:
+
+    - Function: Performs Retrieval-Augmented Generation (RAG) on a private document provided by the user (.pdf, .docx, .txt).
+
+    - Data Source: The user's uploaded file.
+
+    - Strategic Value: Allows the agent to ground its research in the user's specific context, such as internal sales figures, operational metrics ("margin compression"), or proprietary reports. This connects external market data with the user's internal reality.
+
+Stage 2: The Strategist LLM (Strategy Synthesis)
+Once the Researcher Agent has gathered and presented all the relevant facts, its output is passed to the second stage.
+
+- Function: This stage uses a powerful LLM (gpt-4o) with a carefully engineered prompt that instructs it to act as a "world-class financial strategist."
+
+- Process: It receives the user's original problem and the complete, factual research summary from Stage 1. Its task is not to re-summarize the data, but to synthesize it. It must connect the dots between the various data points (internal metrics, competitor strategy, market trends) to develop a set of concrete, forward-looking strategic recommendations.
+
+- Strategic Value: This separation ensures that the final strategy is directly and exclusively derived from the evidence collected in the first stage. It mitigates the risk of LLM hallucination and produces a final output that is both creative and data-grounded.
+
+✨ Core Features
+- Dynamic Toolbelt: The agent adapts its capabilities on the fly by creating specialized tools based on the user's specific query.
+
+- Multi-Source Triangulation: It makes informed decisions by combining and cross-referencing data from official public filings (SEC), the live web (Tavily), and private user documents (RAG).
+
+- Evidence-Based Reasoning: The two-stage design forces the final recommendations to be built upon a solid foundation of retrieved facts, enhancing the reliability of the output.
+
+- Separation of Concerns: By cleanly separating the tasks of data gathering and strategic analysis, the agent minimizes bias and improves the quality of both steps.
 
 
 
@@ -21,44 +62,15 @@ Two-Step "Researcher → Strategist" Logic: A powerful architecture that first u
 1. Install Dependencies
 This project uses several Python libraries. You can install them all with the following command:
 
-!pip install -U --upgrade llama-index llama-index-llms-openai llama-index-agent-openai \
-               llama-index-readers-google llama-index-tools-tavily-research sec-api \
-               google-api-python-client pydrive2 llama-index-core docx2txt
+``` pip install -r requirements.txt ```
 
-2. Configure API Keys
-The agent requires three API keys to function, you'll need these keys:
+2. Launch the Interface from your terminal:
+``` streamlit run app.py ```
 
-- OpenAI API
-- Tavily API
-- SEC API
+3. Enter API Keys: In the sidebar, paste your API keys for OpenAI, Tavily, and SEC-API.io.
 
-## ▶️ How to Run the Agent
-- Step 1: Prepare Your Internal Data File
-Create a simple text file (e.g., Q3_Financial_Review.txt) containing your company's key metrics. The agent is designed to read this file for context.
+4. Upload Internal Data (Optional): If relevant, upload a .pdf, .docx, or .txt file for the agent to use as context.
 
-Example Q3_Financial_Review.txt:
+5. Submit Your Query: Write your financial query in the main text area. Important: For the agent to create its SEC filing tool, you must enclose company tickers in parentheses, e.g., ...strategies of Ford (F) and General Motors (GM)....
 
-```
-Subject: Q3 2025 Performance Review
-  
-Our Gross Profit Margin dropped from 48.9% in Q2 to 45.2% in Q3.
-This was primarily driven by a 15% price increase in cobalt and an 8% increase in semiconductor costs.
-Inventory days remain stable at 55 days.
-```
-
-- Step 2: Upload Your Data File
-If you are using an environment like Google Colab, upload your .txt file to the session storage (usually the /content/ directory). The script is currently configured to look for the file there.
-
-- Step 3: Craft Your Prompt
-Modify the prompt in the if __name__ == "__main__": block at the bottom of the script. For the best results, structure your prompt with three parts:
-```
-State your problem: "Based on my company's recent margin compression..."
-
-Specify competitors: "...compare the strategies of Ford (F) and General Motors (GM)..." (ensure tickers are in parentheses).
-
-Ask for market trends: "...what are the current market trends for EV charging infrastructure?"
-```
-- Step 4: Execute the Script
-
-The agent will begin its two-step process, printing its reasoning, the research it finds, and finally, the strategic recommendations.
-
+6. Execute the Agent: Click the "Generate Strategy" button and observe the agent's progress.
