@@ -5,5 +5,6 @@ llama-index-readers-google
 llama-index-tools-tavily-research 
 sec-api
 google-api-python-client 
-pydrive2 llama-index-core 
+pydrive2 
+llama-index-core
 docx2txt
