@@ -5,6 +5,9 @@ This project implements a sophisticated AI agent designed to act as a financial 
 
 The agent uses a robust two-step "Researcher → Strategist" architecture to first gather high-quality data and then formulate a concrete, data-driven plan.
 
+![alt text](/UI_1.png)
+![alt text](/UI_2.png)
+
 ## 🤖 Agentic Architecture: A Two-Stage Approach
 
 ![alt text](/Architecture.png)
