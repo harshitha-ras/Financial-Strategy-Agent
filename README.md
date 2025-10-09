@@ -6,6 +6,9 @@ This project implements a sophisticated AI agent designed to act as a financial 
 The agent uses a robust two-step "Researcher → Strategist" architecture to first gather high-quality data and then formulate a concrete, data-driven plan.
 
 ## 🤖 Agentic Architecture: A Two-Stage Approach
+
+![alt text](/Architecture.png)
+
 To ensure accuracy and prevent premature conclusions, the agent operates in two distinct stages: Data Foraging and Strategy Synthesis. This separation of concerns is critical for producing high-quality, reliable output.
 
 Stage 1: The Researcher Agent (Data Foraging)
@@ -69,7 +72,7 @@ This project uses several Python libraries. You can install them all with the fo
 
 3. Enter API Keys: In the sidebar, paste your API keys for OpenAI, Tavily, and SEC-API.io.
 
-4. Upload Internal Data (Optional): If relevant, upload a .pdf, .docx, or .txt file for the agent to use as context.
+4. Upload Internal Data: If relevant, upload a .pdf, .docx, or .txt file for the agent to use as context.
 
 5. Submit Your Query: Write your financial query in the main text area. Important: For the agent to create its SEC filing tool, you must enclose company tickers in parentheses, e.g., ...strategies of Ford (F) and General Motors (GM)....
 
