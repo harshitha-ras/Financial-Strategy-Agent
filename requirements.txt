@@ -8,3 +8,5 @@ google-api-python-client
 pydrive2 
 llama-index-core
 docx2txt
+calcbench-api-client
+streamlit

@@ -5,14 +5,18 @@ import streamlit as st
 from typing import List
 import sys
 from io import StringIO
+import calcbench
 
 # --- 1. CONFIGURATION & SETUP (Original Script) ---
 
 # Note: API keys will be set via the Streamlit UI, so initial empty values are fine.
 os.environ["OPENAI_API_KEY"] = ""
 os.environ["TAVILY_API_KEY"] = ""
-os.environ["SEC_API_KEY"] = ""
-os.environ["SEC_API_USER_AGENT"] = "Aurum youremail@example.com"
+
+
+def setup_calcbench(email, password):
+    calcbench.set_credentials(email, password)
+
 
 # Setup logger to stream to a string buffer for display in Streamlit
 log_stream = StringIO()
@@ -26,7 +30,6 @@ try:
     from llama_index.llms.openai import OpenAI
     from llama_index.embeddings.openai import OpenAIEmbedding
     from llama_index.core.node_parser import SentenceSplitter
-    from sec_api import ExtractorApi, QueryApi
     from llama_index.tools.tavily_research import TavilyToolSpec
     from llama_index.core.agent import ReActAgent
     from llama_index.core.llms import ChatMessage
@@ -35,59 +38,9 @@ except ImportError as e:
     st.stop()
 
 # --- HELPER & CORE FUNCTIONS (Your Original Script) ---
-# All your functions (_get_latest_filing_url, create_sec_filing_query_engine, etc.)
 # go here without any changes. They are copied directly.
 
-def _get_latest_filing_url(ticker: str, sec_api_key: str) -> str:
-    """
-    Fetches the latest 10-K filing URL for a given ticker using the SEC Query API.
-    """
-    logger.info(f"Fetching latest 10-K URL for {ticker}...")
-    query_api = QueryApi(api_key=sec_api_key)
-    query = {
-        "query": { "query_string": {
-            "query": f"ticker:{ticker} AND formType:\"10-K\""
-        }},
-        "from": "0",
-        "size": "1",
-        "sort": [{ "filedAt": { "order": "desc" }}]
-    }
-    response = query_api.get_filings(query)
-    if response['filings']:
-        url = response['filings'][0]['linkToFilingDetails']
-        logger.info(f"Found 10-K URL for {ticker}: {url}")
-        return url
-    else:
-        raise FileNotFoundError(f"Could not find a 10-K filing for ticker: {ticker}")
-
-def create_sec_filing_query_engine(ticker: str) -> QueryEngineTool:
-    """Creates a QueryEngine over a specific competitor's 10-K."""
-    logger.info(f"Creating SEC Query Engine for {ticker}'s 10-K...")
-    try:
-        sec_api_key = os.environ.get("SEC_API_KEY")
-        if not sec_api_key or sec_api_key == "YOUR_SEC_API_KEY":
-            raise ValueError("SEC_API_KEY is not set.")
-        filing_url = _get_latest_filing_url(ticker, sec_api_key)
-        extractor_api = ExtractorApi(sec_api_key)
-        section_text = extractor_api.get_section(filing_url, "7", "text")
-        if not section_text.strip():
-            raise ValueError(f"Extracted section 'Item 7' for {ticker} is empty.")
-        docs = [Document(text=section_text, metadata={"ticker": ticker, "filing_type": "10-K", "section": "Item 7"})]
-        index = VectorStoreIndex.from_documents(docs)
-        query_engine = index.as_query_engine(similarity_top_k=5)
-        return QueryEngineTool(
-            query_engine=query_engine,
-            metadata=ToolMetadata(
-                name=f"sec_filing_tool_{ticker}",
-                description=(
-                    f"Retrieves financial strategy and discussion from Item 7 of {ticker}'s latest 10-K filing. "
-                    f"Input should be a clear question about the company's strategy or financial condition."
-                )
-            ),
-        )
-    except Exception as e:
-        logger.error(f"CRITICAL FAILURE in creating SEC tool for {ticker}: {e}")
-        return None
+# SEC API functions removed in favor of Calcbench API
 
 def _extract_tickers_from_prompt(prompt: str) -> List[str]:
     """Extracts all unique stock tickers enclosed in parentheses."""
@@ -128,6 +81,35 @@ def create_operational_rag_query_engine(upload_dir: str) -> QueryEngineTool:
         ),
     )
 
+def create_calcbench_filing_query_engine(ticker: str) -> QueryEngineTool:
+    """Creates a QueryEngine over a competitor's 10-K MD&A using Calcbench."""
+    logger.info(f"Creating Calcbench Query Engine for {ticker} 10-K (MD&A)...")
+    try:
+        # Look up Calcbench company ID
+        company_id = calcbench.ticker_lookup(ticker)
+        filings = calcbench.filings(company_id=company_id, formType='10-K')
+        if not filings:
+            raise FileNotFoundError(f"No 10-K filings found for {ticker} via Calcbench.")
+        filing = filings[0]
+        # Calcbench Item 7 MD&A scraping:
+        mda = calcbench.mda_text(filing['filingId'])
+        if not mda:
+            raise ValueError(f"Item 7 MD&A section not found for {ticker}.")
+        docs = [Document(text=mda, metadata={"ticker": ticker, "filing_type": "10-K", "section": "Item 7"})]
+        index = VectorStoreIndex.from_documents(docs)
+        query_engine = index.as_query_engine(similarity_top_k=5)
+        return QueryEngineTool(
+            query_engine=query_engine,
+            metadata=ToolMetadata(
+                name=f"calcbench_filing_tool_{ticker}",
+                description=(f"Retrieves MD&A from Item 7 of {ticker}'s 10-K from Calcbench.")
+            ),
+        )
+    except Exception as e:
+        logger.error(f"Error creating Calcbench tool for {ticker}: {e}")
+        return None
+
+
 def run_financial_strategist_agent(user_prompt: str, upload_dir: str):
     """Initializes and runs the agent with dynamically created tools."""
     # Reset log stream for each run
@@ -146,11 +128,12 @@ def run_financial_strategist_agent(user_prompt: str, upload_dir: str):
         operational_rag_tool = create_operational_rag_query_engine(upload_dir)
         tavily_spec = TavilyToolSpec(api_key=os.environ.get("TAVILY_API_KEY"))
         
-        # 2. Dynamically create SEC tools
-        sec_tools = [tool for ticker in _extract_tickers_from_prompt(user_prompt) if (tool := create_sec_filing_query_engine(ticker=ticker))]
+        # 2. Dynamically create Calcbench tools for each ticker
+        calcbench_tools = [tool for ticker in _extract_tickers_from_prompt(user_prompt) if (tool := create_calcbench_filing_query_engine(ticker))]
+
         
         # 3. Assemble all tools
-        all_tools = [operational_rag_tool] + tavily_spec.to_tool_list() + sec_tools
+        all_tools = [operational_rag_tool] + tavily_spec.to_tool_list() + calcbench_tools
         
         # 4. Define and run researcher agent
         researcher_prompt = (
@@ -197,6 +180,25 @@ def run_financial_strategist_agent(user_prompt: str, upload_dir: str):
     with st.expander("View Full Agent Logs"):
         st.text(log_stream.getvalue())
 
+def batch_run_eval(eval_csv_path: str, model_output_csv: str, upload_dir: str):
+    import pandas as pd
+    eval_df = pd.read_csv(eval_csv_path)
+    results = []
+    for idx, row in eval_df.iterrows():
+        question = row['question']
+        context = row['context']  # Pass this (if your agent takes a context arg)
+        # You may need to adjust if you use upload files/per-question context
+
+        # Run your agent once per row, without UI (headless)
+        answer = run_financial_strategist_agent(question, upload_dir)  # returns agent string output
+        
+        results.append({'question': question, 'model_output': answer})
+
+    result_df = pd.DataFrame(results)
+    result_df.to_csv(model_output_csv, index=False)
+    print(f"Saved batch model outputs to {model_output_csv}")
+
+
 
 # --- 2. STREAMLIT UI ---
 
@@ -208,13 +210,17 @@ with st.sidebar:
     st.header("🔑 API Configuration")
     openai_api_key = st.text_input("OpenAI API Key", type="password", placeholder="sk-...")
     tavily_api_key = st.text_input("Tavily API Key", type="password")
-    sec_api_key = st.text_input("SEC-API.io Key", type="password")
+    
+    st.header("🔑 Calcbench Credentials")
+    calcbench_email = st.text_input("Calcbench Username/Email")
+    calcbench_password = st.text_input("Calcbench Password", type="password")
     
     st.header("📄 Operational Data")
     uploaded_file = st.file_uploader(
         "Upload your internal data (.txt, .pdf, .docx)",
         type=['txt', 'pdf', 'docx']
     )
+
 
 st.info("Enter your query below. Make sure to include company tickers in parentheses, like `(F)` or `(GM)`.")
 
@@ -229,7 +235,7 @@ user_prompt = st.text_area("Your Query:", value=default_query, height=150)
 # Run button
 if st.button("Generate Strategy", type="primary"):
     # --- Input Validation ---
-    if not openai_api_key or not tavily_api_key or not sec_api_key:
+    if not openai_api_key or not tavily_api_key or not calcbench_email or not calcbench_password:
         st.error("Please enter all required API keys in the sidebar.")
     elif not user_prompt:
         st.error("Please enter a query.")
@@ -238,7 +244,7 @@ if st.button("Generate Strategy", type="primary"):
         try:
             os.environ["OPENAI_API_KEY"] = openai_api_key
             os.environ["TAVILY_API_KEY"] = tavily_api_key
-            os.environ["SEC_API_KEY"] = sec_api_key
+            setup_calcbench(calcbench_email, calcbench_password)
 
             Settings.llm = OpenAI(model="gpt-4o", temperature=0.1)
             Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-small")
