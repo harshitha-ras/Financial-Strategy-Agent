@@ -1,12 +1,16 @@
-llama-index 
-llama-index-llms-openai 
+llama-index
+llama-index-llms-openai
 llama-index-agent-openai
-llama-index-readers-google 
-llama-index-tools-tavily-research 
+llama-index-readers-google
+llama-index-tools-tavily-research
 sec-api
-google-api-python-client 
-pydrive2 
+google-api-python-client
+pydrive2
 llama-index-core
 docx2txt
 calcbench-api-client
 streamlit
+
+# Evaluation script dependencies
+rouge-score
+nltk
