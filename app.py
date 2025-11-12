@@ -205,6 +205,30 @@ def batch_run_eval(eval_csv_path: str, model_output_csv: str, upload_dir: str):
 st.set_page_config(page_title="Financial Strategist Agent", layout="wide")
 st.title("📈 Financial Strategist Agent")
 
+# GitHub link
+st.markdown("""
+<div style="text-align: right;">
+    <a href="https://github.com/harshitha-ras/Financial-Strategy-Agent" target="_blank" style="text-decoration: none;">
+        <img src="https://img.shields.io/badge/GitHub-View%20Source-blue?logo=github" alt="GitHub">
+    </a>
+</div>
+""", unsafe_allow_html=True)
+
+# Description section
+st.markdown("""
+### What is this?
+This AI-powered tool helps you make data-driven financial and strategic decisions for your business.
+It analyzes SEC filings, market trends, and your internal company data to provide actionable recommendations.
+
+### How to use:
+1. **Enter API credentials** in the sidebar (OpenAI, Tavily, and Calcbench)
+2. **Upload internal documents** (optional) - your company's operational data
+3. **Write your query** below - be specific about your business challenge and include company tickers in parentheses like `(AAPL)` or `(TSLA)`
+4. **Click "Generate Strategy"** to get AI-powered insights and recommendations
+
+---
+""")
+
 # Sidebar for API keys and file upload
 with st.sidebar:
     st.header("🔑 API Configuration")
